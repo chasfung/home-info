@@ -2,448 +2,614 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=1024, height=758, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Kobo Nia Smart Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      width: 100%;
-      height: 100%;
+    /* 針對 E-Ink 螢幕的最佳化高對比度樣式 */
+    body {
+      width: 1024px;
+      height: 758px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
       background-color: #ffffff;
       color: #000000;
-      font-family: sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       user-select: none;
-      overflow: hidden;
     }
-    .dashboard {
-      width: 100%;
-      padding: 6px;
-    }
-    
-    /* 頂部 Header */
-    .header-box {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #000000;
-      padding-bottom: 4px;
-      margin-bottom: 4px;
-    }
-    .date-text { font-size: 22px; font-weight: bold; }
-    .day-text { font-size: 16px; font-weight: bold; color: #333333; }
-    .temp-text { font-size: 22px; font-weight: bold; }
 
-    .flip-clock { display: flex; gap: 4px; }
+    /* 翻頁時鐘數字盒 */
     .flip-card {
-      background-color: #000000;
+      background-color: #1a1a1a;
       color: #ffffff;
-      font-size: 24px;
-      font-weight: bold;
-      padding: 1px 6px;
-      border-radius: 4px;
+      border-radius: 12px;
+      font-weight: 800;
+      letter-spacing: -1px;
     }
 
-    /* 天氣預報 */
-    .weather-box {
-      border: 1px solid #000000;
-      padding: 4px 6px;
-      border-radius: 4px;
-      margin-bottom: 6px;
-    }
-    .weather-title { font-weight: bold; font-size: 12px; text-decoration: underline; text-align: center; margin-bottom: 2px; }
-    .weather-desc { font-size: 10px; line-height: 1.2; }
-
-    /* 兩欄排版 (港鐵 vs 巴士) */
-    .main-grid {
-      display: flex;
-      gap: 6px;
-    }
-    .left-section { width: 44%; }
-    .right-section { width: 56%; }
-
-    /* 港鐵卡片 */
-    .sec-title { font-size: 13px; font-weight: bold; border-bottom: 2px solid #000000; padding-bottom: 1px; margin-bottom: 3px; }
-    .mtr-card {
-      border: 1px solid #000000;
-      padding: 2px 4px;
-      margin-bottom: 3px;
-      border-radius: 3px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+    /* 路線 Badge 樣式 */
     .route-badge {
-      color: #ffffff;
-      font-weight: bold;
-      font-size: 10px;
-      padding: 1px 3px;
-      border-radius: 2px;
-      display: inline-block;
-    }
-    .bg-ktl { background-color: #00af41; }
-    .bg-eal { background-color: #53b9e6; }
-    .bg-tml { background-color: #923011; }
-    .bg-kmb { background-color: #000000; width: 45px; text-align: center; font-size: 11px; }
-    .bg-gmb { background-color: #38a169; width: 45px; text-align: center; font-size: 11px; }
-
-    /* 巴士列表 */
-    .bus-header {
-      display: flex;
-      justify-content: space-between;
-      background: #eeeeee;
-      padding: 1px 2px;
-      font-size: 10px;
-      font-weight: bold;
-      margin-bottom: 2px;
-      text-align: center;
-    }
-    .bus-row {
-      display: flex;
-      justify-content: space-between;
+      display: inline-flex;
       align-items: center;
-      padding: 1px 0;
+      justify-content: center;
+      border-radius: 8px;
+      font-weight: 800;
+      color: #ffffff;
     }
-    .col-route { width: 45px; text-align: center; }
-    .col-time { width: 65px; text-align: center; font-size: 14px; font-weight: bold; position: relative; }
 
-    .tag-company {
-      position: absolute;
-      right: -2px;
-      top: 0px;
-      font-size: 8px;
-      font-weight: bold;
-      padding: 0 1px;
-      border: 1px solid #000000;
+    .badge-kmb {
+      background-color: #000000;
     }
-    .tag-kmb { background: #000000; color: #ffffff; }
-    .tag-ctb { background: #ffffff; color: #000000; }
 
-    .update-footer { font-size: 8px; color: #666666; text-align: right; margin-top: 2px; }
+    .badge-gmb {
+      background-color: #38b000; /* 小巴經典綠色 */
+    }
+
+    /* E-Ink 殘影消除閃爍層 */
+    #ghost-clear {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #000000;
+      z-index: 9999;
+      display: none;
+    }
   </style>
 </head>
-<body>
+<body class="flex flex-row p-4 box-border">
 
-<div class="dashboard">
-  <!-- 頂部 Header -->
-  <div class="header-box">
+  <!-- E-Ink 清除殘影黑屏層 -->
+  <div id="ghost-clear"></div>
+
+  <!-- 左欄：時鐘、天氣、港鐵 (寬度 480px) -->
+  <div class="w-[480px] h-full flex flex-col justify-between pr-4 border-r-2 border-gray-300">
+    
+    <!-- 第一區：日期、天氣圖示與翻頁時鐘 -->
     <div>
-      <span class="date-text" id="clock-date">--/--</span>
-      <span class="day-text" id="clock-day">---</span>
-      <span style="margin-left: 6px;" class="temp-text" id="weather-temp">--</span><b>°C</b>
+      <div class="flex flex-row justify-between items-center mb-2">
+        <!-- 左邊：日期與天氣 -->
+        <div class="flex flex-col">
+          <div class="flex items-baseline space-x-2">
+            <span id="date-str" class="text-4xl font-extrabold tracking-tight">--/--</span>
+            <span id="day-str" class="text-2xl font-bold">---</span>
+          </div>
+          <div class="flex items-center space-x-2 mt-2">
+            <!-- 天氣 Icon SVG -->
+            <svg id="weather-icon" class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"></path>
+            </svg>
+            <span id="temp-str" class="text-3xl font-extrabold">--.- °C</span>
+          </div>
+        </div>
+
+        <!-- 右邊：翻頁時鐘 -->
+        <div class="flex space-x-2">
+          <div id="clock-hour" class="flip-card w-[85px] h-[95px] text-5xl flex items-center justify-center">--</div>
+          <div id="clock-min" class="flip-card w-[85px] h-[95px] text-5xl flex items-center justify-center">--</div>
+        </div>
+      </div>
+
+      <hr class="border-t-2 border-black my-2" />
+
+      <!-- 第二區：天文台天氣預報描述 -->
+      <div class="mb-3">
+        <h3 id="weather-title" class="text-center font-bold text-lg underline underline-offset-4 mb-2">本港地區天氣預測</h3>
+        <p id="weather-desc" class="text-base font-semibold text-gray-800 leading-snug h-[95px] overflow-hidden">
+          正在載入本港天氣預報資訊...
+        </p>
+      </div>
     </div>
-    <div class="flip-clock">
-      <div class="flip-card" id="clock-hour">00</div>
-      <div class="flip-card" id="clock-min">00</div>
+
+    <!-- 第三區：港鐵列車資訊 -->
+    <div class="mt-auto">
+      <!-- 港鐵標題與 Icon -->
+      <div class="flex items-center space-x-2 mb-2">
+        <svg class="w-6 h-6 text-black" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+        </svg>
+        <span class="font-extrabold text-lg">港鐵即時班次預估</span>
+      </div>
+
+      <!-- MTR 路線列表 -->
+      <div class="space-y-1.5 text-sm font-bold">
+        <!-- 觀塘綫 -->
+        <div class="flex justify-between items-center p-1.5 bg-gray-100 rounded-md border border-gray-400">
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 bg-green-700 text-white rounded text-xs font-bold">觀塘綫</span>
+            <span>往 調景嶺</span>
+          </div>
+          <span id="mtr-ktl" class="font-extrabold">計算中...</span>
+        </div>
+        <!-- 東鐵綫 往金鐘 -->
+        <div class="flex justify-between items-center p-1.5 bg-gray-100 rounded-md border border-gray-400">
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 bg-cyan-700 text-white rounded text-xs font-bold">東鐵綫</span>
+            <span>往 金鐘</span>
+          </div>
+          <span id="mtr-eal-dn" class="font-extrabold">計算中...</span>
+        </div>
+        <!-- 東鐵綫 往上水/邊境 -->
+        <div class="flex justify-between items-center p-1.5 bg-gray-100 rounded-md border border-gray-400">
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 bg-cyan-700 text-white rounded text-xs font-bold">東鐵綫</span>
+            <span>往 上水/邊境</span>
+          </div>
+          <span id="mtr-eal-up" class="font-extrabold">計算中...</span>
+        </div>
+        <!-- 屯馬綫 往屯門 -->
+        <div class="flex justify-between items-center p-1.5 bg-gray-100 rounded-md border border-gray-400">
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 bg-amber-800 text-white rounded text-xs font-bold">屯馬綫</span>
+            <span>往 屯門</span>
+          </div>
+          <span id="mtr-tml-dn" class="font-extrabold">計算中...</span>
+        </div>
+        <!-- 屯馬綫 往烏溪沙 -->
+        <div class="flex justify-between items-center p-1.5 bg-gray-100 rounded-md border border-gray-400">
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 bg-amber-800 text-white rounded text-xs font-bold">屯馬綫</span>
+            <span>往 烏溪沙</span>
+          </div>
+          <span id="mtr-tml-up" class="font-extrabold">計算中...</span>
+        </div>
+      </div>
+
+      <!-- 更新時間標記 -->
+      <div class="text-right text-xs font-bold text-gray-600 mt-2">
+        最後更新: <span id="last-update-time">--:--</span>
+      </div>
     </div>
   </div>
 
-  <!-- 天氣預報 -->
-  <div class="weather-box">
-    <div class="weather-title" id="weather-title">本港地區天氣預測</div>
-    <div class="weather-desc" id="weather-desc">載入天氣數據中...</div>
-  </div>
+  <!-- 右欄：巴士與小巴資訊 (寬度 512px) -->
+  <div class="w-[512px] h-full flex flex-col justify-between pl-4">
+    
+    <!-- 第一組：紅磡南道 -->
+    <div>
+      <!-- 標題欄 -->
+      <div class="mb-1 pb-1 border-b-2 border-black">
+        <h2 class="text-2xl font-black">紅磡南道</h2>
+      </div>
 
-  <!-- 主要內容區 -->
-  <div class="main-grid">
-    <!-- 左：港鐵 -->
-    <div class="left-section">
-      <div class="sec-title">○ 港鐵即時班次</div>
-      <div class="mtr-card">
-        <div><span class="route-badge bg-ktl">觀塘</span> <b style="font-size:10px;">往調景嶺</b></div>
-        <b style="font-size:10px;" id="ktl-wha-tik">計算中...</b>
+      <!-- 到站時間欄位獨立標頭 -->
+      <div class="flex items-center justify-between py-1 mb-1 border-b border-gray-400 bg-gray-100 rounded-sm">
+        <span class="text-xs font-black text-gray-700 w-[110px] text-center">路線</span>
+        <div class="w-[120px] text-center flex justify-center items-center">
+          <span class="w-7 h-7 rounded-full bg-red-600 text-white text-[8px] font-black flex items-center justify-center text-center leading-tight shadow-sm">COMING<br>BUS</span>
+        </div>
+        <div class="w-[120px] text-center flex justify-center items-center">
+          <span class="w-7 h-7 rounded-full bg-red-800 text-white text-[8px] font-black flex items-center justify-center text-center leading-tight shadow-sm">NEXT<br>BUS</span>
+        </div>
       </div>
-      <div class="mtr-card">
-        <div><span class="route-badge bg-eal">東鐵</span> <b style="font-size:10px;">往金鐘</b></div>
-        <b style="font-size:10px;" id="eal-huh-adm">計算中...</b>
+
+      <div class="space-y-0.5">
+        <!-- 12A -->
+        <div class="flex items-center justify-between py-0.5 border-b border-gray-200">
+          <span class="route-badge badge-kmb text-xl w-[110px] py-0.5">12A</span>
+          <span id="eta-12a-1" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+          <span id="eta-12a-2" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+        </div>
+        <!-- 7B -->
+        <div class="flex items-center justify-between py-0.5 border-b border-gray-200">
+          <span class="route-badge badge-kmb text-xl w-[110px] py-0.5">7B</span>
+          <span id="eta-7b-1" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+          <span id="eta-7b-2" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+        </div>
+        <!-- 15 -->
+        <div class="flex items-center justify-between py-0.5 border-b border-gray-200">
+          <span class="route-badge badge-kmb text-xl w-[110px] py-0.5">15</span>
+          <span id="eta-15-1" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+          <span id="eta-15-2" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+        </div>
+        <!-- 297 -->
+        <div class="flex items-center justify-between py-0.5 border-b border-gray-200">
+          <span class="route-badge badge-kmb text-xl w-[110px] py-0.5">297</span>
+          <span id="eta-297-1" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+          <span id="eta-297-2" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+        </div>
+        <!-- 269B -->
+        <div class="flex items-center justify-between py-0.5 border-b border-gray-200">
+          <span class="route-badge badge-kmb text-xl w-[110px] py-0.5">269B</span>
+          <span id="eta-269b-1" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+          <span id="eta-269b-2" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+        </div>
       </div>
-      <div class="mtr-card">
-        <div><span class="route-badge bg-eal">東鐵</span> <b style="font-size:10px;">往上水/邊境</b></div>
-        <b style="font-size:10px;" id="eal-huh-north">計算中...</b>
-      </div>
-      <div class="mtr-card">
-        <div><span class="route-badge bg-tml">屯馬</span> <b style="font-size:10px;">往屯門</b></div>
-        <b style="font-size:10px;" id="tml-huh-tum">計算中...</b>
-      </div>
-      <div class="mtr-card">
-        <div><span class="route-badge bg-tml">屯馬</span> <b style="font-size:10px;">往烏溪沙</b></div>
-        <b style="font-size:10px;" id="tml-huh-wks">計算中...</b>
-      </div>
-      <div class="update-footer" id="mtr-update-time">更新: --:--</div>
     </div>
 
-    <!-- 右：巴士小巴 -->
-    <div class="right-section">
-      <div class="sec-title">紅磡南道 / 黃埔花園</div>
-      <div class="bus-header">
-        <div style="width:45px;">路線</div>
-        <div style="width:65px;">COMING</div>
-        <div style="width:65px;">NEXT</div>
+    <!-- 第二組：黃埔花園 -->
+    <div class="mt-1">
+      <h2 class="text-2xl font-black mb-1 pb-0.5 border-b-2 border-black">黃埔花園</h2>
+
+      <div class="space-y-0.5">
+        <!-- 2 (綠色小巴) -->
+        <div class="flex items-center justify-between py-0.5 border-b border-gray-200">
+          <span class="route-badge badge-gmb text-xl w-[110px] py-0.5">2</span>
+          <span id="eta-gmb2-1" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+          <span id="eta-gmb2-2" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+        </div>
+        <!-- 2A (綠色小巴) -->
+        <div class="flex items-center justify-between py-0.5 border-b border-gray-200">
+          <span class="route-badge badge-gmb text-xl w-[110px] py-0.5">2A</span>
+          <span id="eta-gmb2a-1" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+          <span id="eta-gmb2a-2" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+        </div>
+        <!-- 8A -->
+        <div class="flex items-center justify-between py-0.5 border-b border-gray-200">
+          <span class="route-badge badge-kmb text-xl w-[110px] py-0.5">8A</span>
+          <span id="eta-8a-1" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+          <span id="eta-8a-2" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+        </div>
+        <!-- 8P -->
+        <div class="flex items-center justify-between py-0.5 border-b border-gray-200">
+          <span class="route-badge badge-kmb text-xl w-[110px] py-0.5">8P</span>
+          <span id="eta-8p-1" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+          <span id="eta-8p-2" class="text-2xl font-extrabold w-[120px] text-center">--:--</span>
+        </div>
+        <!-- 115 (九巴 + 城巴 合併單一行列) -->
+        <div class="flex items-center justify-between py-0.5">
+          <span class="route-badge badge-kmb text-xl w-[110px] py-0.5">115</span>
+          <span id="eta-115-1" class="text-2xl font-extrabold w-[120px] text-center relative flex items-center justify-center">--:--</span>
+          <span id="eta-115-2" class="text-2xl font-extrabold w-[120px] text-center relative flex items-center justify-center">--:--</span>
+        </div>
       </div>
-      
-      <div class="bus-row"><div class="col-route"><span class="route-badge bg-kmb">12A</span></div><div class="col-time" id="eta-12a-1">--:--</div><div class="col-time" id="eta-12a-2">--:--</div></div>
-      <div class="bus-row"><div class="col-route"><span class="route-badge bg-kmb">7B</span></div><div class="col-time" id="eta-7b-1">--:--</div><div class="col-time" id="eta-7b-2">--:--</div></div>
-      <div class="bus-row"><div class="col-route"><span class="route-badge bg-kmb">15</span></div><div class="col-time" id="eta-15-1">--:--</div><div class="col-time" id="eta-15-2">--:--</div></div>
-      <div class="bus-row"><div class="col-route"><span class="route-badge bg-kmb">297</span></div><div class="col-time" id="eta-297-1">--:--</div><div class="col-time" id="eta-297-2">--:--</div></div>
-      <div class="bus-row"><div class="col-route"><span class="route-badge bg-kmb">269B</span></div><div class="col-time" id="eta-269b-1">--:--</div><div class="col-time" id="eta-269b-2">--:--</div></div>
 
-      <div class="bus-row"><div class="col-route"><span class="route-badge bg-gmb">2</span></div><div class="col-time" id="eta-gmb2-1">--:--</div><div class="col-time" id="eta-gmb2-2">--:--</div></div>
-      <div class="bus-row"><div class="col-route"><span class="route-badge bg-gmb">2A</span></div><div class="col-time" id="eta-gmb2a-1">--:--</div><div class="col-time" id="eta-gmb2a-2">--:--</div></div>
-      <div class="bus-row"><div class="col-route"><span class="route-badge bg-kmb">8A</span></div><div class="col-time" id="eta-8a-1">--:--</div><div class="col-time" id="eta-8a-2">--:--</div></div>
-      <div class="bus-row"><div class="col-route"><span class="route-badge bg-kmb">8P</span></div><div class="col-time" id="eta-8p-1">--:--</div><div class="col-time" id="eta-8p-2">--:--</div></div>
-
-      <div class="bus-row">
-        <div class="col-route"><span class="route-badge bg-kmb">115</span></div>
-        <div class="col-time"><span id="eta-115-1">--:--</span><span id="tag-115-1"></span></div>
-        <div class="col-time"><span id="eta-115-2">--:--</span><span id="tag-115-2"></span></div>
+      <!-- 巴士區域最後刷新提示 -->
+      <div class="text-right text-[10px] font-bold text-gray-500 mt-1">
+        巴士數據刷新時間: <span id="bus-last-update">--:--:--</span>
       </div>
-
-      <div class="update-footer" id="bus-update-time">巴士刷新: --:--:--</div>
     </div>
+
   </div>
-</div>
 
-<script>
-  // 即時時鐘
-  function updateLiveClock() {
-    var now = new Date();
-    var month = String(now.getMonth() + 1);
-    if (month.length < 2) month = '0' + month;
-    var date = String(now.getDate());
-    if (date.length < 2) date = '0' + date;
-    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-    var elDate = document.getElementById('clock-date');
-    var elDay = document.getElementById('clock-day');
-    if (elDate) elDate.innerText = month + '/' + date;
-    if (elDay) elDay.innerText = days[now.getDay()];
-
-    var hrs = String(now.getHours());
-    if (hrs.length < 2) hrs = '0' + hrs;
-    var mins = String(now.getMinutes());
-    if (mins.length < 2) mins = '0' + mins;
-
-    var elHour = document.getElementById('clock-hour');
-    var elMin = document.getElementById('clock-min');
-    if (elHour) elHour.innerText = hrs;
-    if (elMin) elMin.innerText = mins;
-  }
-
-  updateLiveClock();
-  setInterval(updateLiveClock, 1000);
-
-  // 原生 XHR 網路請求相容庫 (代替 Kobo 不支援的 fetch)
-  function httpGet(url, callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4) {
-        if (xhr.status === 200 || xhr.status === 304) {
-          try {
-            var json = JSON.parse(xhr.responseText);
-            callback(null, json);
-          } catch(e) { callback(e, null); }
-        } else {
-          callback(new Error('HTTP ' + xhr.status), null);
-        }
+  <script>
+    /* Helper: 格式化時間 HH:mm */
+    function formatTimeStr(isoString) {
+      if (!isoString) return "--:--";
+      if (typeof isoString === 'string' && /^\d{2}:\d{2}$/.test(isoString)) {
+        return isoString;
       }
-    };
-    xhr.onerror = function(e) { callback(e, null); };
-    xhr.send();
-  }
-
-  // 天氣 API
-  function updateWeather() {
-    httpGet('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc', function(err, data) {
-      if (!err && data && data.temperature && data.temperature.data && data.temperature.data[1]) {
-        var elTemp = document.getElementById('weather-temp');
-        if (elTemp) elTemp.innerText = data.temperature.data[1].value;
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) {
+        const match = String(isoString).match(/(\d{2}):(\d{2})/);
+        if (match) return `${match[1]}:${match[2]}`;
+        return "--:--";
       }
-    });
-
-    httpGet('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=tc', function(err, data) {
-      if (!err && data) {
-        var elTitle = document.getElementById('weather-title');
-        var elDesc = document.getElementById('weather-desc');
-        if (elTitle && data.forecastPeriod) elTitle.innerText = data.forecastPeriod;
-        if (elDesc && data.forecastDesc) elDesc.innerText = data.forecastDesc;
-      }
-    });
-  }
-  updateWeather();
-  setInterval(updateWeather, 600000);
-
-  // 港鐵 API
-  function calculateFrequency(trainList) {
-    if (!trainList || trainList.length < 2) return (trainList && trainList.length === 1) ? "約--分一班" : "暫無班次";
-    var t1 = parseInt(trainList[0].ttnt, 10);
-    var t2 = parseInt(trainList[1].ttnt, 10);
-    if (!isNaN(t1) && !isNaN(t2)) {
-      var diff = Math.abs(t2 - t1);
-      if (diff > 0) return "約 " + diff + " 分鐘一班";
+      const hrs = String(d.getHours()).padStart(2, '0');
+      const mins = String(d.getMinutes()).padStart(2, '0');
+      return `${hrs}:${mins}`;
     }
-    return "約--分一班";
-  }
 
-  function fetchMTR(line, station, callback) {
-    httpGet('https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=' + line + '&sta=' + station, function(err, data) {
-      if (!err && data && data.status === 1 && data.data[line + '-' + station]) {
-        callback(data.data[line + '-' + station]);
-      }
-    });
-  }
+    /* 即時更新日期與翻頁時鐘 */
+    function updateLiveClock() {
+      const now = new Date();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const date = String(now.getDate()).padStart(2, '0');
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayName = days[now.getDay()];
 
-  function updateAllMTR() {
-    fetchMTR('KTL', 'WHA', function(d) {
-      if (d && d.UP) {
-        var el = document.getElementById('ktl-wha-tik');
-        if (el) el.innerText = calculateFrequency(d.UP);
-      }
-    });
-    fetchMTR('EAL', 'HUH', function(d) {
-      if (d && d.DOWN) {
-        var el1 = document.getElementById('eal-huh-adm');
-        if (el1) el1.innerText = calculateFrequency(d.DOWN);
-      }
-      if (d && d.UP) {
-        var el2 = document.getElementById('eal-huh-north');
-        if (el2) el2.innerText = calculateFrequency(d.UP);
-      }
-    });
-    fetchMTR('TML', 'HUH', function(d) {
-      if (d && d.UP) {
-        var el1 = document.getElementById('tml-huh-tum');
-        if (el1) el1.innerText = calculateFrequency(d.UP);
-      }
-      if (d && d.DOWN) {
-        var el2 = document.getElementById('tml-huh-wks');
-        if (el2) el2.innerText = calculateFrequency(d.DOWN);
-      }
-    });
-    var now = new Date();
-    var m = String(now.getMinutes()); if (m.length < 2) m = '0' + m;
-    var elMtrTime = document.getElementById('mtr-update-time');
-    if (elMtrTime) elMtrTime.innerText = '更新: ' + now.getHours() + ':' + m;
-  }
-  updateAllMTR();
-  setInterval(updateAllMTR, 180000);
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
 
-  // 巴士/小巴 代理請求 Helper
-  function fetchJsonWithFallback(url, callback) {
-    httpGet(url, function(err, data) {
-      if (!err && data) {
-        callback(data);
-      } else {
-        var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-        httpGet(proxyUrl, function(err2, data2) {
-          if (!err2 && data2) callback(data2);
-        });
-      }
-    });
-  }
+      const dateElem = document.getElementById('date-str');
+      const dayElem = document.getElementById('day-str');
+      const hourElem = document.getElementById('clock-hour');
+      const minElem = document.getElementById('clock-min');
+      const updateElem = document.getElementById('last-update-time');
 
-  function parseTime(timeStr) {
-    if (!timeStr) return null;
-    var d = new Date(timeStr);
-    if (isNaN(d.getTime())) return null;
-    var h = String(d.getHours()); if (h.length < 2) h = '0' + h;
-    var m = String(d.getMinutes()); if (m.length < 2) m = '0' + m;
-    return h + ':' + m;
-  }
+      if (dateElem) dateElem.textContent = `${month}/${date}`;
+      if (dayElem) dayElem.textContent = dayName;
+      if (hourElem) hourElem.textContent = hours;
+      if (minElem) minElem.textContent = minutes;
+      if (updateElem) updateElem.textContent = `${hours}:${minutes}`;
+    }
 
-  function fetchKMB(url, elId1, elId2) {
-    fetchJsonWithFallback(url, function(json) {
-      var el1 = document.getElementById(elId1);
-      var el2 = document.getElementById(elId2);
-      if (!el1 || !el2) return;
-      if (json && json.data && json.data.length > 0) {
-        el1.innerText = parseTime(json.data[0].eta) || "--:--";
-        el2.innerText = json.data[1] ? (parseTime(json.data[1].eta) || "--:--") : "--:--";
-      }
-    });
-  }
+    /* 專利專線小巴（GMB）高相容性時間戳解析器 */
+    function parseGmbEtas(json) {
+      let etas = [];
+      if (!json) return etas;
 
-  function fetchGMB(url, elId1, elId2) {
-    fetchJsonWithFallback(url, function(json) {
-      var el1 = document.getElementById(elId1);
-      var el2 = document.getElementById(elId2);
-      if (!el1 || !el2) return;
-      var times = [];
-      if (json && json.data) {
-        var list = Array.isArray(json.data) ? json.data : (json.data.eta || []);
-        for (var i = 0; i < list.length; i++) {
-          var t = parseTime(list[i].timestamp || (list[i].eta ? list[i].eta[0].timestamp : null));
-          if (t) times.push(t);
+      try {
+        let items = [];
+        
+        // 1. data 陣列結構 (政府標準 API)
+        if (Array.isArray(json.data)) {
+          json.data.forEach(d => {
+            if (d && Array.isArray(d.eta)) {
+              items.push(...d.eta);
+            } else if (d && (d.timestamp || d.diff !== undefined)) {
+              items.push(d);
+            }
+          });
+        } 
+        // 2. data 單一物件結構
+        else if (json.data && Array.isArray(json.data.eta)) {
+          items = json.data.eta;
+        } else if (json.data && (json.data.timestamp || json.data.diff !== undefined)) {
+          items = [json.data];
         }
-      }
-      el1.innerText = times[0] || "--:--";
-      el2.innerText = times[1] || "--:--";
-    });
-  }
 
-  function updateCombined115() {
-    var kmbUrl = 'https://data.etabus.gov.hk/v1/transport/kmb/eta/7055FEADC58CB1F1/115/1';
-    var ctbUrl = 'https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/CTB/001477/115';
-    var combined = [];
+        // 解析提取出的 ETA 項目
+        items.forEach(item => {
+          if (item.timestamp) {
+            etas.push(item.timestamp);
+          } else if (typeof item.diff === 'number') {
+            const target = new Date(Date.now() + item.diff * 60000);
+            const hrs = String(target.getHours()).padStart(2, '0');
+            const mins = String(target.getMinutes()).padStart(2, '0');
+            etas.push(`${hrs}:${mins}`);
+          }
+        });
 
-    var render = function() {
-      combined.sort(function(a, b) { return a.time - b.time; });
-      for (var slot = 1; slot <= 2; slot++) {
-        var item = combined[slot - 1];
-        var timeEl = document.getElementById('eta-115-' + slot);
-        var tagEl = document.getElementById('tag-115-' + slot);
-        if (timeEl && tagEl) {
-          if (item) {
-            var h = String(item.time.getHours()); if (h.length < 2) h = '0' + h;
-            var m = String(item.time.getMinutes()); if (m.length < 2) m = '0' + m;
-            timeEl.innerText = h + ':' + m;
-            tagEl.innerText = item.company === 'KMB' ? '九' : '城';
-            tagEl.className = item.company === 'KMB' ? 'tag-company tag-kmb' : 'tag-company tag-ctb';
-          } else {
-            timeEl.innerText = '--:--';
-            tagEl.innerText = '';
+        // 3. 全局 Regex 萬用比對（最後備援）
+        if (etas.length === 0) {
+          const str = JSON.stringify(json);
+          const matches = str.match(/"timestamp"\s*:\s*"([^"]+)"/g);
+          if (matches) {
+            matches.forEach(m => {
+              const valMatch = m.match(/"timestamp"\s*:\s*"([^"]+)"/);
+              if (valMatch && valMatch[1]) {
+                etas.push(valMatch[1]);
+              }
+            });
           }
         }
+      } catch (err) {
+        console.error("GMB Parse Error:", err);
       }
-    };
 
-    fetchJsonWithFallback(kmbUrl, function(json) {
-      if (json && json.data) {
-        json.data.forEach(function(x) { if (x.eta) combined.push({ time: new Date(x.eta), company: 'KMB' }); });
+      return etas;
+    }
+
+    /* 抓取九巴 / 小巴 到站 API (帶有 CORS Fallback) */
+    async function fetchETA(url, elementId1, elementId2, isGMB = false) {
+      const el1 = document.getElementById(elementId1);
+      const el2 = document.getElementById(elementId2);
+      if (!el1 || !el2) return;
+
+      try {
+        let json = null;
+        
+        // 嘗試直接抓取
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            json = await res.json();
+          } else {
+            throw new Error(`HTTP ${res.status}`);
+          }
+        } catch (directErr) {
+          // 若直接抓取失敗 (如 file:// 跨域問題)，小巴 API 自動採用代理轉發
+          if (isGMB) {
+            console.warn("Direct fetch failed for GMB, using proxy fallback...", directErr);
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+            const resProxy = await fetch(proxyUrl);
+            json = await resProxy.json();
+          } else {
+            throw directErr;
+          }
+        }
+
+        let etas = [];
+
+        if (isGMB) {
+          etas = parseGmbEtas(json);
+        } else {
+          /* 九巴 / 城巴 API 解析 */
+          const dataList = (json && Array.isArray(json.data)) ? json.data : [];
+          etas = dataList.map(item => item ? item.eta : null).filter(Boolean);
+        }
+
+        el1.textContent = formatTimeStr(etas[0]);
+        el2.textContent = formatTimeStr(etas[1]);
+      } catch (err) {
+        console.error("Fetch ETA Error:", url, err);
+        el1.textContent = "--:--";
+        el2.textContent = "--:--";
       }
-      render();
-    });
+    }
 
-    fetchJsonWithFallback(ctbUrl, function(json) {
-      if (json && json.data) {
-        json.data.forEach(function(x) { if (x.eta) combined.push({ time: new Date(x.eta), company: 'CTB' }); });
+    /* 專門合併九巴同城巴 115 號線數據 */
+    async function updateCombined115() {
+      const el1 = document.getElementById('eta-115-1');
+      const el2 = document.getElementById('eta-115-2');
+      if (!el1 || !el2) return;
+
+      let allEtas = [];
+
+      // 1. 抓取九巴 115
+      try {
+        const resKmb = await fetch('https://data.etabus.gov.hk/v1/transport/kmb/eta/7055FEADC58CB1F1/115/1');
+        const jsonKmb = await resKmb.json();
+        if (jsonKmb && Array.isArray(jsonKmb.data)) {
+          jsonKmb.data.forEach(item => {
+            if (item && item.eta) {
+              const d = new Date(item.eta);
+              if (!isNaN(d.getTime())) {
+                allEtas.push({ time: d, company: '九' });
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Fetch KMB 115 failed:", e);
       }
-      render();
-    });
-  }
 
-  function updateAllBuses() {
-    fetchKMB('https://data.etabus.gov.hk/v1/transport/kmb/eta/EF5A5CD9C3A038C9/12A/1', 'eta-12a-1', 'eta-12a-2');
-    fetchKMB('https://data.etabus.gov.hk/v1/transport/kmb/eta/EF5A5CD9C3A038C9/7B/1', 'eta-7b-1', 'eta-7b-2');
-    fetchKMB('https://data.etabus.gov.hk/v1/transport/kmb/eta/EF5A5CD9C3A038C9/15/1', 'eta-15-1', 'eta-15-2');
-    fetchKMB('https://data.etabus.gov.hk/v1/transport/kmb/eta/EF5A5CD9C3A038C9/297/1', 'eta-297-1', 'eta-297-2');
-    fetchKMB('https://data.etabus.gov.hk/v1/transport/kmb/eta/95FAB1D2AD752ECE/269B/1', 'eta-269b-1', 'eta-269b-2');
-    fetchGMB('https://data.etagmb.gov.hk/eta/route-stop/2009246/1/1', 'eta-gmb2-1', 'eta-gmb2-2');
-    fetchGMB('https://data.etagmb.gov.hk/eta/route-stop/2009247/1/1', 'eta-gmb2a-1', 'eta-gmb2a-2');
-    fetchKMB('https://data.etabus.gov.hk/v1/transport/kmb/eta/75D6E5952B41E1D2/8A/1', 'eta-8a-1', 'eta-8a-2');
-    fetchKMB('https://data.etabus.gov.hk/v1/transport/kmb/eta/75D6E5952B41E1D2/8P/1', 'eta-8p-1', 'eta-8p-2');
-    updateCombined115();
+      // 2. 抓取城巴 115
+      try {
+        const resCtb = await fetch('https://rt.data.gov.hk/v1/transport/citybus-nwfb/eta/CTB/001477/115');
+        const jsonCtb = await resCtb.json();
+        if (jsonCtb && Array.isArray(jsonCtb.data)) {
+          jsonCtb.data.forEach(item => {
+            if (item && item.eta) {
+              const d = new Date(item.eta);
+              if (!isNaN(d.getTime())) {
+                allEtas.push({ time: d, company: '城' });
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Fetch CTB 115 failed:", e);
+      }
 
-    var now = new Date();
-    var h = String(now.getHours()); if (h.length < 2) h = '0' + h;
-    var m = String(now.getMinutes()); if (m.length < 2) m = '0' + m;
-    var s = String(now.getSeconds()); if (s.length < 2) s = '0' + s;
-    var elBusTime = document.getElementById('bus-update-time');
-    if (elBusTime) elBusTime.innerText = '巴士刷新: ' + h + ':' + m + ':' + s;
-  }
+      // 3. 按時間由近至遠排序
+      allEtas.sort((a, b) => a.time - b.time);
 
-  updateAllBuses();
-  setInterval(updateAllBuses, 60000);
-</script>
+      function renderEtaHTML(item) {
+        if (!item) return "--:--";
+        const hrs = String(item.time.getHours()).padStart(2, '0');
+        const mins = String(item.time.getMinutes()).padStart(2, '0');
+        const badgeClass = item.company === '九'
+          ? 'bg-black text-white'
+          : 'bg-gray-200 text-black border border-black';
+        return `${hrs}:${mins}<span class="absolute right-0 text-[10px] font-bold px-1 py-0.5 rounded leading-none ${badgeClass}">${item.company}</span>`;
+      }
 
+      el1.innerHTML = renderEtaHTML(allEtas[0]);
+      el2.innerHTML = renderEtaHTML(allEtas[1]);
+    }
+
+    /* 更新所有巴士同小巴資料 */
+    function updateAllBuses() {
+      // 1. 紅磡南道 (九巴 12A, 7B, 15, 297, 269B)
+      fetchETA('https://data.etabus.gov.hk/v1/transport/kmb/eta/EF5A5CD9C3A038C9/12A/1', 'eta-12a-1', 'eta-12a-2');
+      fetchETA('https://data.etabus.gov.hk/v1/transport/kmb/eta/EF5A5CD9C3A038C9/7B/1', 'eta-7b-1', 'eta-7b-2');
+      fetchETA('https://data.etabus.gov.hk/v1/transport/kmb/eta/EF5A5CD9C3A038C9/15/1', 'eta-15-1', 'eta-15-2');
+      fetchETA('https://data.etabus.gov.hk/v1/transport/kmb/eta/EF5A5CD9C3A038C9/297/1', 'eta-297-1', 'eta-297-2');
+      fetchETA('https://data.etabus.gov.hk/v1/transport/kmb/eta/95FAB1D2AD752ECE/269B/1', 'eta-269b-1', 'eta-269b-2');
+
+      // 2. 黃埔花園 (專線小巴 2, 2A & 九巴 8A, 8P & 115合併)
+      fetchETA('https://data.etagmb.gov.hk/eta/route-stop/2009246/1/1', 'eta-gmb2-1', 'eta-gmb2-2', true);
+      fetchETA('https://data.etagmb.gov.hk/eta/route-stop/2009247/1/1', 'eta-gmb2a-1', 'eta-gmb2a-2', true);
+      fetchETA('https://data.etabus.gov.hk/v1/transport/kmb/eta/75D6E5952B41E1D2/8A/1', 'eta-8a-1', 'eta-8a-2');
+      fetchETA('https://data.etabus.gov.hk/v1/transport/kmb/eta/75D6E5952B41E1D2/8P/1', 'eta-8p-1', 'eta-8p-2');
+      updateCombined115();
+
+      // 更新巴士時間戳
+      const now = new Date();
+      const busUpdateElem = document.getElementById('bus-last-update');
+      if (busUpdateElem) {
+        const hrs = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const secs = String(now.getSeconds()).padStart(2, '0');
+        busUpdateElem.textContent = `${hrs}:${mins}:${secs}`;
+      }
+    }
+
+    /* 抓取港鐵即時班次資訊 */
+    async function fetchMTR(line, station) {
+      const url = `https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${line}&sta=${station}`;
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.status === 1 && data.data[`${line}-${station}`]) {
+          return data.data[`${line}-${station}`];
+        }
+      } catch (e) {
+        console.error("Fetch MTR error:", e);
+      }
+      return null;
+    }
+
+    /* 計算兩班列車時間差 (頻率) */
+    function calculateFrequency(trainList) {
+      if (!trainList || trainList.length < 2) {
+        return (trainList && trainList.length === 1) ? "約--分一班" : "暫無班次";
+      }
+
+      const t1 = parseInt(trainList[0].ttnt);
+      const t2 = parseInt(trainList[1].ttnt);
+
+      if (!isNaN(t1) && !isNaN(t2)) {
+        const diff = Math.abs(t2 - t1);
+        if (diff > 0) {
+          return `約 ${diff} 分鐘一班`;
+        }
+      }
+
+      return "約--分一班";
+    }
+
+    async function updateMTRData() {
+      // 1. 觀塘線 黃埔 (往調景嶺)
+      const ktlWha = await fetchMTR('KTL', 'WHA');
+      if (ktlWha && ktlWha.UP) {
+        document.getElementById('mtr-ktl').textContent = calculateFrequency(ktlWha.UP);
+      }
+
+      // 2 & 3. 東鐵線 紅磡 (往金鐘 / 往上水/邊境)
+      const ealHuh = await fetchMTR('EAL', 'HUH');
+      if (ealHuh) {
+        if (ealHuh.DOWN) {
+          document.getElementById('mtr-eal-dn').textContent = calculateFrequency(ealHuh.DOWN);
+        }
+        if (ealHuh.UP) {
+          document.getElementById('mtr-eal-up').textContent = calculateFrequency(ealHuh.UP);
+        }
+      }
+
+      // 4 & 5. 屯馬線 紅磡 (往屯門 / 往烏溪沙)
+      const tmlHuh = await fetchMTR('TML', 'HUH');
+      if (tmlHuh) {
+        if (tmlHuh.UP) {
+          document.getElementById('mtr-tml-dn').textContent = calculateFrequency(tmlHuh.UP);
+        }
+        if (tmlHuh.DOWN) {
+          document.getElementById('mtr-tml-up').textContent = calculateFrequency(tmlHuh.DOWN);
+        }
+      }
+    }
+
+    /* 抓取香港天文台 API */
+    async function updateWeatherData() {
+      try {
+        // 即時氣溫: temperature.data[1].value
+        const resRhr = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
+        const jsonRhr = await resRhr.json();
+        const tempData = jsonRhr.temperature?.data;
+        const temp = (tempData && tempData[1] !== undefined) ? tempData[1].value : (tempData?.[0]?.value || '--.-');
+        document.getElementById('temp-str').textContent = `${temp} °C`;
+
+        // 天氣預測標題與內容: forecastPeriod & forecastDesc
+        const resFlw = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=tc');
+        const jsonFlw = await resFlw.json();
+
+        if (jsonFlw.forecastPeriod) {
+          document.getElementById('weather-title').textContent = jsonFlw.forecastPeriod;
+        }
+        
+        const desc = jsonFlw.forecastDesc || jsonFlw.generalSituation || '暫無預報資料。';
+        document.getElementById('weather-desc').textContent = desc;
+      } catch (e) {
+        console.error("Weather fetch failed", e);
+      }
+    }
+
+    /* E-Ink 清除殘影腳本（每 15 分鐘全屏黑白閃爍一次） */
+    function clearEInkGhosting() {
+      const el = document.getElementById('ghost-clear');
+      if (!el) return;
+      el.style.display = 'block';
+      setTimeout(() => {
+        el.style.display = 'none';
+      }, 600);
+    }
+
+    // 初始化執行
+    updateLiveClock();
+    updateAllBuses();
+    updateMTRData();
+    updateWeatherData();
+
+    // 依據用戶指定的更新頻率設定計時器
+    setInterval(updateLiveClock, 1000);              // 每秒更新即時時鐘
+    setInterval(updateAllBuses, 1 * 60 * 1000);       // 每 1 分鐘更新巴士及小巴到站資訊
+    setInterval(updateMTRData, 3 * 60 * 1000);        // 每 3 分鐘更新地鐵資訊
+    setInterval(updateWeatherData, 10 * 60 * 1000);   // 每 10 分鐘更新天氣預報
+    setInterval(clearEInkGhosting, 15 * 60 * 1000);   // 每 15 分鐘全屏刷新防止 E-Ink 殘影
+  </script>
 </body>
 </html>
